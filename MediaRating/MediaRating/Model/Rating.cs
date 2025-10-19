@@ -31,5 +31,6 @@ namespace MediaRating.Model
         public User Creator { get; set; }
         public MediaEntry Media { get; set; }
         public List<User> LikedBy { get; set; } = new();
+        public Guid Guid { get; set; }
     }
 }

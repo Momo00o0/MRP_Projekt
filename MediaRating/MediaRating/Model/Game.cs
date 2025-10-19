@@ -11,7 +11,7 @@ namespace MediaRating.Model
 
         public Game() { }
 
-        public Game(string title, string description, int releaseYear, int ageRestriction, User creator, double averageScore)
-          : base(title, description, releaseYear, ageRestriction, creator, averageScore) { }
+        public Game(string title, string description, int releaseYear, int ageRestriction, User creator)
+          : base(title, description, releaseYear, ageRestriction, creator) { }
     }
 }
