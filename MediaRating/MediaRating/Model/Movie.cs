@@ -10,7 +10,7 @@ namespace MediaRating.Model
     {
 
         public Movie() { }
-        public Movie(string title, string description, int releaseYear, int ageRestriction, User creator, double averageScore)
-        : base(title, description, releaseYear, ageRestriction, creator, averageScore) { }
+        public Movie(string title, string description, int releaseYear, int ageRestriction, User creator)
+        : base(title, description, releaseYear, ageRestriction, creator) { }
     }
 }
