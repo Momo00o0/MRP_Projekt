@@ -47,7 +47,7 @@ public class HttpService
 
             switch (method)
             {
-                case "GET" when path == "/api/users/":
+                case "GET" when path == "/api/users":
                     {
                         var (items, code, err) = _users.GetAllUsers();
                         await Send(code, err is null ? items.Select(u => new { u.Guid, u.Username, u.Id }) : Error(err));
@@ -97,7 +97,8 @@ public class HttpService
                                 m.Title,
                                 m.Description,
                                 m.AgeRestriction,
-                                m.ReleaseYear
+                                m.ReleaseYear,
+                                Creator = new {m.Creator.Guid, m.Creator.Username }
                             })
                             : Error(err);
                         await Send(code, payload);
@@ -121,7 +122,8 @@ public class HttpService
                             item.Title,
                             item.Description,
                             item.AgeRestriction,
-                            item.ReleaseYear
+                            item.ReleaseYear,
+                            Creator = new { item.Creator.Guid, item.Creator.Username }
                         };
                         await Send(code, dto);
                         break;
@@ -153,7 +155,8 @@ public class HttpService
                             entity.Title,
                             entity.Description,
                             entity.AgeRestriction,
-                            entity.ReleaseYear
+                            entity.ReleaseYear,
+                            Creator = new { entity.Creator.Guid, entity.Creator.Username }
                         });
                         break;
                     }
