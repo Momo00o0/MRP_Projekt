@@ -4,9 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MediaRating.Cmd
+namespace MediaRating.Api.DTOs
 {
-    internal class MovieDto
-    {
-    }
+    public enum MediaKind { Movie, Series, Game }
 }

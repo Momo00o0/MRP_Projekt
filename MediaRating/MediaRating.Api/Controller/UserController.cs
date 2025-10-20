@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using MediaRating.DTOs;
+using MediaRating.Api.DTOs;
 using MediaRating.Infrastructure;
 using MediaRating.Model;
-using MediaRating.Cmd;
+using MediaRating.Api.Cmd;
 using MediaRating.Api.Services;
 
 

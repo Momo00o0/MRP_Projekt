@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MediaRating.DTOs
+namespace MediaRating.Api.DTOs
 {
     public record MediaEntryDto(
         
@@ -16,6 +16,6 @@ namespace MediaRating.DTOs
         Guid UserGuid,
         MediaKind Kind
         );
-    
+    //A
     
 }
