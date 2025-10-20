@@ -1,9 +1,14 @@
 ﻿
-using MediaRating.Infrastructure;
-using MediaRating.Model;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+using MediaRating.Infrastructure; // DbContext
+using MediaRating.Model;         // User, MediaEntry, Movie, Series, Game
 using MediaRating.DTOs;
 
-namespace MediaRating.Controller
+
+namespace MediaRating.Api.Controller
 {
     public class MediaController
     {
