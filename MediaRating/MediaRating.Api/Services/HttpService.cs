@@ -4,9 +4,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using MediaRating.Infrastructure;
 using MediaRating.Api.Controller;
-using MediaRating.DTOs;
+using MediaRating.Api.DTOs;
 using MediaRating.Model;
-using MediaRating.Cmd;
+using MediaRating.Api.Cmd;
 
 namespace MediaRating.Api.Services;
 

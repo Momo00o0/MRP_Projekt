@@ -5,7 +5,7 @@ using System.Linq;
 
 using MediaRating.Infrastructure; // DbContext
 using MediaRating.Model;         // User, MediaEntry, Movie, Series, Game
-using MediaRating.DTOs;
+using MediaRating.Api.DTOs;
 
 
 namespace MediaRating.Api.Controller

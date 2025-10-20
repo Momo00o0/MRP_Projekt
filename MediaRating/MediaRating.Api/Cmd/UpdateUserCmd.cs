@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MediaRating.DTOs
+namespace MediaRating.Api.Cmd
 {
-    public enum MediaKind { Movie, Series, Game }
+    public record UpdateUserCmd(string? Username, string? Password);
 }
