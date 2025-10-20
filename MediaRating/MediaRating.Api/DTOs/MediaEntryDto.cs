@@ -16,6 +16,6 @@ namespace MediaRating.Api.DTOs
         Guid UserGuid,
         MediaKind Kind
         );
-    
+    //A
     
 }
