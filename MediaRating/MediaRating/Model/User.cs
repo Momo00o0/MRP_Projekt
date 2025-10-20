@@ -17,7 +17,7 @@ namespace MediaRating.Model
 
             Id = id;
             Username = username;
-            Password = password;
+            Password = HashPassword(password);
         }
 
         public int Id { get; set; } 

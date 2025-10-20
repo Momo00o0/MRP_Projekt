@@ -5,10 +5,10 @@ using MediaRating.DTOs;
 using MediaRating.Infrastructure;
 using MediaRating.Model;
 using MediaRating.Cmd;
-using MediaRating.Services;
+using MediaRating.Api.Services;
 
 
-namespace MediaRating.Controller
+namespace MediaRating.Api.Controller
 {
     public class UserController
     {
@@ -120,16 +120,16 @@ namespace MediaRating.Controller
             }
         }
 
-        
-       
 
-        // ---- Token (einfach & stateless)
-        // Format: username-mrp-UNIXTIME-<8hex>
+
+
+       
         public string CreateToken(User user)
         {
-            string timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
-            string randomPart = Guid.NewGuid().ToString("N")[..8];
-            return $"{user.Username.ToLower()}-mrp-{timestamp}-{randomPart}";
+            long ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            string guidN = user.Guid.ToString("N");           // ohne Bindestriche
+            string rand8 = Guid.NewGuid().ToString("N")[..8]; // 8 Hex
+            return $"mrpx.{guidN}.{ts}.{rand8}";
         }
     }
 }

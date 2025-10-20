@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaRating", "MediaRating\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaRating.Tests", "MediaRating.Tests\MediaRating.Tests.csproj", "{8A198C53-BBE9-4DAF-8B86-DC586ADE1309}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaRating.Api", "MediaRating.Api\MediaRating.Api.csproj", "{38AFD072-3ACC-4EF9-89E4-D627B1F38A1D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{8A198C53-BBE9-4DAF-8B86-DC586ADE1309}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8A198C53-BBE9-4DAF-8B86-DC586ADE1309}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8A198C53-BBE9-4DAF-8B86-DC586ADE1309}.Release|Any CPU.Build.0 = Release|Any CPU
+		{38AFD072-3ACC-4EF9-89E4-D627B1F38A1D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{38AFD072-3ACC-4EF9-89E4-D627B1F38A1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{38AFD072-3ACC-4EF9-89E4-D627B1F38A1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{38AFD072-3ACC-4EF9-89E4-D627B1F38A1D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
