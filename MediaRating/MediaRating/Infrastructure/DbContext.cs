@@ -31,7 +31,7 @@ namespace MediaRating.Infrastructure
 
             Console.WriteLine("Seeding in-memory data");
 
-            User admin = new User(0, "admin", "");
+            User admin = new User(0, "momo", "");
             admin.Password = admin.HashPassword("admin");
             admin.Guid = Guid.NewGuid();
 
