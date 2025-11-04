@@ -1,6 +1,6 @@
-using MediaRating.Cmd;
+using MediaRating.Api.Cmd;
 using MediaRating.Api.Controller;
-using MediaRating.DTOs;
+using MediaRating.Api.DTOs;
 using MediaRating.Infrastructure;
 using MediaRating.Model;
 using MediaRating.Api.Services;
