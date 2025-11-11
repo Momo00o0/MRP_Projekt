@@ -284,16 +284,7 @@ public class HttpService
                     }
 
                 // GET /api/ratings/media/{guid}/avg
-                case "GET" when path.EndsWith("/avg") && path.StartsWith("/api/ratings/media/"):
-                    {
-                        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length < 4 || !Guid.TryParse(parts[3], out var mg))
-                        { await Send(res, 400, new { error = "Invalid media guid" }); break; }
-
-                        var (avg, code, err) = _ratings.GetAverage(mg);
-                        await Send(res, code, err is null ? new { average = avg } : new { error = err });
-                        break;
-                    }
+               
 
                 // DELETE /api/ratings?user={u}&media={m}
                 case "DELETE" when path == "/api/ratings":
