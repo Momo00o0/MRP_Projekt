@@ -1,0 +1,7 @@
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <PG_CONN>Host=localhost;Port=5432;Database=mediarating;Username=media;Password=media_pw</PG_CONN>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>

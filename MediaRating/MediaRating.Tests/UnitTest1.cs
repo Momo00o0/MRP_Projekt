@@ -1,152 +1,121 @@
-using MediaRating.Api.Cmd;
-using MediaRating.Api.Controller;
-using MediaRating.Api.DTOs;
-using MediaRating.Infrastructure;
-using MediaRating.Model;
-using MediaRating.Api.Services;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using Assert = NUnit.Framework.Assert;
+using Npgsql;
+
+using MediaRating.Infrastructure;
+using MediaRating.Api.Controller;
+using MediaRating.DTOs;
+using MediaRating.Model;
 
 namespace MediaRating.Tests
 {
     [TestFixture]
-    public class ApiTests
+    public class ApiBasicTests
     {
-        private DbContext _db;
-        private UserController _users;
-        private MediaController _media;
+        private string _conn = null!;
+        private MediaRatingContext _db = null!;
+        private UserController _users = null!;
+        private MediaController _media = null!;
+        private RatingController _ratings = null!;
+
+        [OneTimeSetUp]
+        public void OneTime()
+        {
+            _conn = Environment.GetEnvironmentVariable("PG_CONN")
+                ?? throw new InvalidOperationException("PG_CONN fehlt (Tests).");
+        }
 
         [SetUp]
         public void Setup()
         {
-           
-            _db = new DbContext(withSeed: false);
-            var httpService = new HttpService(_db);
+            // DB sauber machen vor jedem Test
+            using (var con = new NpgsqlConnection(_conn))
+            {
+                con.Open();
+                using var cmd = new NpgsqlCommand(
+                    "TRUNCATE TABLE ratings, media_entries, users RESTART IDENTITY CASCADE;", con);
+                cmd.ExecuteNonQuery();
+            }
+
+            _db = new MediaRatingContext();
             _users = new UserController(_db);
             _media = new MediaController(_db);
+            _ratings = new RatingController(_db);
         }
 
-        // ---------- USER ----------
+        // -------- USER --------
 
         [Test]
-        public void Password()
+        public void Password_Hash_Compare_Works()
         {
-            var user = new User(1,"momo","123");
-            Assert.AreEqual(user.ComparePassword("123"),true);
-        }
+            var u = new User(1, "momo", "");
+            u.Password = u.HashPassword("123");
 
-        [Test]
-        public void UserLogin()
-        {
-            var user = new UserDto("momo", "123", null);   
-            _users.AddUser(user);
-            var (loginResponse, status, error) = _users.Login(user);
-
-            Assert.That(status, Is.EqualTo(200));
-            Assert.That(loginResponse, Is.Not.Null);
-            Assert.That(error, Is.Null);
-        }
-
-        public void UserRegister()
-        {
-            var user = new UserDto("momo", "123", null);
-            var (userData, status, error) = _users.AddUser(user);
-            Assert.That(status, Is.EqualTo(200));
-            Assert.That(userData.Username, Is.EqualTo("momo"));
+            // Prüft, dass das Passwort "123" gegen den gespeicherten Hash korrekt erkannt wird (true).
+            Assert.That(u.ComparePassword("123")); // EIN Assert
         }
 
         [Test]
-        public void Update_User_Changes_Username()
+        public void CreateToken_Format()
         {
-            // arrange
-            var user = new UserDto("momo", "123", null);
-            var (created, _, _) = _users.AddUser(user);
+            var (user, _, _) = _users.AddUser(new UserDto("tokuser", "pw", null));
+            var token = _users.CreateToken(user!);
 
-            // act
-            var update = new UpdateUserCmd("momo2", null);
-            var (updated, status, error) = _users.UpdateUser(created.Guid, update);
-
-            // assert
-            Assert.That(status, Is.EqualTo(200));
-            Assert.That(error, Is.Null);
-            Assert.That(updated!.Username, Is.EqualTo("momo2"));
+            // Prüft, dass das erzeugte Token mit dem erwarteten Präfix beginnt ("mrpx.").
+            Assert.That(token.StartsWith("mrpx.")); // EIN Assert
         }
 
         [Test]
-        public void CreateToken_Has_Expected_Format()
+        public void Register_Then_Login()
         {
-            var user = new UserDto("Mohamad", "123", null);
-            var (userData, _, _) = _users.AddUser(user);
+            _users.AddUser(new UserDto("momo", "123", null));
+            var (login, _, _) = _users.Login(new UserDto("momo", "123", null));
 
-            var token = _users.CreateToken(userData);
-
-            Assert.That(token, Does.StartWith("mohamad-mrp-"));
-            Assert.That(token.Split('-').Length, Is.EqualTo(4));
+            // Prüft, dass nach Registrierung ein erfolgreicher Login möglich ist (es gibt eine Login-Response).
+            Assert.That(login, Is.Not.Null); // EIN Assert
         }
 
-        // ---------- MEDIA ----------
+        // -------- MEDIA --------
 
         [Test]
-        public void Create_Movie()
+        public void Create_Media_And_List()
         {
-            // creator anlegen
             var (creator, _, _) = _users.AddUser(new UserDto("creator", "pw", null));
 
-            var m = new MediaEntryDto(
+            var dto = new MediaEntryDto(
                 Title: "Interstellar",
                 Description: "Sci-Fi Drama",
                 ReleaseYear: 2014,
                 Genres: new List<string> { "Sci-Fi", "Drama" },
                 AgeRestriction: 12,
-                UserGuid: creator.Guid,
+                UserGuid: creator!.Guid,
                 Kind: MediaKind.Movie
             );
 
-            var (entity, status, error) = _media.Create(m, creator);
-
-            Assert.That(status, Is.EqualTo(201));
-            Assert.That(error, Is.Null);
-            Assert.That(entity, Is.Not.Null);
-            Assert.That(_db.MediaEntries.Any(x => x.Guid == entity.Guid), Is.True);
-
-            // Basiseigenschaften
-            Assert.That(entity.Title, Is.EqualTo("Interstellar"));
-           
-        }
-
-        [Test]
-        public void GetMedia()
-        {
-           
-            var (creator, _, _) = _users.AddUser(new UserDto("momo", "pw", null));
-            var m = new MediaEntryDto("Film A", "desc", 2020, new(), 12, creator.Guid, MediaKind.Movie);
-            _media.Create(m, creator);
-
-            // act
-            var (items, status, error) = _media.GetAll();
-
-            // assert
-            Assert.That(status, Is.EqualTo(200));
-            Assert.That(error, Is.Null);
-            Assert.That(items.Count, Is.GreaterThanOrEqualTo(1));
-            Assert.That(items[0].Creator, Is.Not.Null);
-        }
-
-        [Test]
-        public void GetMediaById()
-        {
-            var (creator, _, _) = _users.AddUser(new UserDto("momo", "pw", null));
-            var dto = new MediaEntryDto("Series X", "desc", 2022, new(), 16, creator!.Guid, MediaKind.Series);
             var (entity, _, _) = _media.Create(dto, creator);
+            var (all, _, _) = _media.GetAll();
 
-            var (found, status, error) = _media.GetById(entity.Guid);
-
-            Assert.That(status, Is.EqualTo(200));
-            Assert.That(error, Is.Null);
-            Assert.That(found!.Guid, Is.EqualTo(entity.Guid));
-            Assert.That(found.Title, Is.EqualTo("Series X"));
+            // Prüft, dass der eben erstellte Media-Eintrag in der Liste aller Medien auftaucht (per Guid).
+            Assert.That(all.Any(m => m.Guid == entity.Guid)); // EIN Assert
         }
+
+        [Test]
+        public void Get_Media_By_Id()
+        {
+            var (creator, _, _) = _users.AddUser(new UserDto("c", "pw", null));
+            var (created, _, _) = _media.Create(
+                new MediaEntryDto("Series X", "desc", 2022, new List<string> { "Action" }, 16, creator!.Guid, MediaKind.Series),
+                creator
+            );
+
+            var (found, _, _) = _media.GetById(created.Guid);
+
+            // Prüft, dass ein Media-Eintrag mit der erstellten Guid aus der DB gelesen werden kann (nicht null).
+            Assert.That(found, Is.Not.Null); // EIN Assert
+        }
+
+        
     }
 }

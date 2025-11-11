@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MediaRating.Api.DTOs
+namespace MediaRating.DTOs
 {
-    public enum MediaKind { Movie, Series, Game }
+    public record RatingCreateDto( Guid UserGuid, Guid MediaGuid, int Stars, string? Comment);
 }

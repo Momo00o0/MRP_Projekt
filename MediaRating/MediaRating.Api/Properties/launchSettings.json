@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "MediaRating.Api": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:8080",
+      "environmentVariables": {
+        "PG_CONN": "Host=localhost;Port=5432;Database=mediarating;Username=media;Password=media_pw"
+      }
+    }
+  }
+}

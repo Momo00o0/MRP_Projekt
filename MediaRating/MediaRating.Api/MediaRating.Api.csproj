@@ -15,4 +15,8 @@
     <ProjectReference Include="..\MediaRating\MediaRating.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+
 </Project>

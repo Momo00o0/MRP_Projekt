@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MediaRating.Api.DTOs
+namespace MediaRating.DTOs
 {
     public record UserDto(
         string Username,
