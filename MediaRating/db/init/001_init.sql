@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS ratings (
   id       SERIAL PRIMARY KEY,
   user_id  INT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   media_id INT NOT NULL REFERENCES media_entries(id) ON DELETE RESTRICT,
-  stars    INT NOT NULL CHECK (score BETWEEN 1 AND 5),
+  stars    INT NOT NULL CHECK (stars BETWEEN 1 AND 5),
   comment  TEXT
 );
 

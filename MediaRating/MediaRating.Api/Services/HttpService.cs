@@ -111,13 +111,13 @@ public class HttpService
                 case "GET" when path == "/api/users":
                     {
                         /* ----------------------------------------------
-   SCHRITT: Alle Benutzer holen
-   EINFACH ERKLÄRT:
-   - Keine Eingabe nötig.
-   - Controller fragt die DB nach allen Nutzern.
-   - Wir geben nur harmlose Felder zurück
-     (Guid, Username, Id).
-   ---------------------------------------------- */
+                           SCHRITT: Alle Benutzer holen
+                           EINFACH ERKLÄRT:
+                           - Keine Eingabe nötig.
+                           - Controller fragt die DB nach allen Nutzern.
+                           - Wir geben nur harmlose Felder zurück
+                             (Guid, Username, Id).
+                           ---------------------------------------------- */
                         var items = _users.GetAllUsers(); // nur Liste
                         await Send(res, 200, items.Select(u => new { u.Guid, u.Username, u.Id }));
                         break;
@@ -198,10 +198,10 @@ public class HttpService
                            - Bei Fehler: passende Fehlermeldung (400/404/...).
                            ---------------------------------------------- */
                         var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length < 3 || !Guid.TryParse(parts[2], out var id))
-                        { await Send(res, 400, Error("Invalid media id")); break; }
+                        if (parts.Length < 3 || !Guid.TryParse(parts[2], out var guid))
+                        { await Send(res, 400, Error("Invalid media guid")); break; }
 
-                        var (item, code, err) = _media.GetById(id);
+                        var (item, code, err) = _media.GetByGuid(guid);
                         if (err != null) { await Send(res, code, Error(err)); break; }
 
                         var dto = new
@@ -218,8 +218,34 @@ public class HttpService
                         break;
                     }
 
+                case "DELETE" when path == "/api/media/":
+                    {
+                        var (ok, tokenUser) = CheckToken(req);
+                        if (!ok) { await Send(res, 401, Error("Unauthorized - Valid token required")); break; }
+
+
+                        var guidStr = path.Substring("/api/media/".Length);
+                        if (!Guid.TryParse(guidStr, out var mediaGuid))
+                        { await Send(res, 400, Error("Invalid media guid")); break; }
+
+                        var media = _media.GetByGuid(mediaGuid);
+                        if(media.item is null) { await Send(res, 404, Error("Media not found")); break; }
+
+                        //Owner
+                        if(!string.Equals(media.item.Creator.Guid.ToString(), tokenUser, StringComparison.OrdinalIgnoreCase))
+                        {
+                            await Send(res, 403, Error("Forbidden, you are not the owner")); break;
+
+                        }
+
+                        var (success, code, err) = _media.
+                                 
+
+
+                    }
+
                 // POST /api/media/add
-                case "POST" when path == "/api/media/add":
+                case "POST" when path == "/api/media/":
                     {
                         /* ----------------------------------------------
                            SCHRITT: Neues Medium anlegen
@@ -263,7 +289,7 @@ public class HttpService
 
                 // RATING
                 // POST /api/ratings
-                case "POST" when path == "/api/ratings/add":
+                case "POST" when path == "/api/ratings/":
                     {
                         var dto = await Body<RatingCreateDto>(req);
                         var (msg, code, err) = _ratings.Create(dto!);

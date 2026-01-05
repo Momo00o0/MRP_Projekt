@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Security.Cryptography;
+using MediaRating.PasswordHash;
 namespace MediaRating.Model
 {
     public class User
@@ -29,18 +30,17 @@ namespace MediaRating.Model
 
         public string HashPassword(string password)
         {
-            
-            var salt = new string(Username.ToUpper().Reverse().ToArray());
-            var input = password + salt;
-
-            using var sha = SHA256.Create();
-            var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
-            
-            var sb = new StringBuilder(bytes.Length * 2);
-            foreach (var b in bytes) sb.Append(b.ToString("x2"));
-            return sb.ToString();
+            string hashedPassword = BCrypt.Net.BCrypt.EnhancedHashPassword(password, 13); //Cost Parameter
+            return hashedPassword;
         }
 
-        public bool ComparePassword(string password) => HashPassword(password) == Password;
+        public bool ComparePassword(string hash, string password)
+        {
+            if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(hash))
+                return false;
+
+            return BCrypt.Net.BCrypt.EnhancedVerify(password,hash);
+        }
+
     }
 }

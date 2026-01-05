@@ -26,9 +26,9 @@ namespace MediaRating.Infrastructure
             return c;
         }
 
-     
+
         //            USERS
-      
+
         // Holt ALLE Benutzer aus der Tabelle "users".
         // Mapped jede DB-Zeile auf ein User-Objekt (Id, Guid, Username, Password-Hash).
         public List<User> Users_GetAll()
@@ -43,7 +43,7 @@ namespace MediaRating.Infrastructure
             {
                 // Spalten-Indexe: 0=id, 1=guid, 2=username, 3=password_hash
                 var u = new User(rd.GetInt32(0), rd.GetString(2), "") { Guid = rd.GetGuid(1) };
-                u.Password = rd.GetString(3); 
+                u.Password = rd.GetString(3);
                 list.Add(u);
             }
             return list;
@@ -109,7 +109,7 @@ namespace MediaRating.Infrastructure
         }
 
 
-      
+
         //           MEDIA
 
         // Holt ALLE Media-Einträge (Movie/Series/Game) inklusive Ersteller (User).
@@ -183,6 +183,27 @@ namespace MediaRating.Infrastructure
             return m;
         }
 
+        public MediaEntry Media_Delete(Guid guid, Guid ownerGuid)
+        {
+            using var con = Open();
+            using var cmd = new NpgsqlCommand(@"
+        DELETE FROM media_entries m
+        USING users u
+        WHERE m.guid = @g
+          AND u.id = m.creator_id
+          AND u.id = m.creator_id
+          AND u.guid = @ug
+        RETURNING
+            m.guid, m.title, m.description, m.release_year, m.age_restriction, m.kind,
+            u.id, u.guid, u.username;
+    ", con);
+
+            cmd.Parameters.AddWithValue("@g", guid);
+            cmd.Parameters.AddWithValue("@ug", ownerGuid);
+            using var rd = cmd.ExecuteReader();
+            if (!rd.Read()) return null;
+        }
+
         // Erstellt einen neuen Media-Eintrag in der DB.
         // ACHTUNG (Design-Hinweis): Hier wird ein DTO (MediaEntryDto) in der Infrastruktur benutzt.
         // Besser wäre: die Controller validieren + übergeben primitive Parameter (Title, Year, ...),
@@ -217,6 +238,9 @@ namespace MediaRating.Infrastructure
             entity.Guid = g;
             return entity;
         }
+
+
+
 
         // RATINGS
         private int RequireUserId(NpgsqlConnection con, Guid userGuid)

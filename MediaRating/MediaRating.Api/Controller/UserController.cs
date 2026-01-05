@@ -47,7 +47,7 @@ namespace MediaRating.Api.Controller
 
                 var user = _db.Users_FindByUsername(userData.Username);
                 if (user is null) return (null, 404, "User Not Found");
-                if (!user.ComparePassword(userData.Password)) return (null, 403, "Unauthorized");
+                if (!user.ComparePassword(user.Password,userData.Password)) return (null, 403, "Unauthorized");
 
                 string token = CreateToken(user);
                 var response = new { user.Id, user.Username, user.Guid, Token = token };
@@ -58,7 +58,6 @@ namespace MediaRating.Api.Controller
                 return (null, 500, "Login failed");
             }
         }
-
 
 
         public string CreateToken(User user)
