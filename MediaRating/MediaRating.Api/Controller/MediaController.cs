@@ -1,53 +1,73 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using MediaRating.Infrastructure; // DbContext
-using MediaRating.Model;         // User, MediaEntry, Movie, Series, Game
+using MediaRating.Infrastructure;
+using MediaRating.Model;
 using MediaRating.DTOs;
-
 
 namespace MediaRating.Api.Controller
 {
+    /// <summary>
+    /// Anwendungslogik / Use-Cases für MediaEntries.
+    /// Enthält Validierung + Berechtigungsprüfungen (Owner),
+    /// aber kein HTTP und kein SQL.
+    /// </summary>
     public class MediaController
     {
         private readonly MediaRatingContext _db;
+
         public MediaController(MediaRatingContext db) { _db = db; }
 
-
         // GET /api/media
-        public (List<MediaEntry> items, int status, string? error) GetAll()
+        public (List<MediaEntry>? items, int status, string? error) GetAll()
         {
-            var items = _db.Media_GetAll();              // List<MediaEntry>
-            return (items, 200, null);                   // Tupel für HttpService
+            var items = _db.Media_GetAll();
+            return (items, 200, null);
         }
 
-        // GET /api/media/{id}
+        // GET /api/media/{guid}
         public (MediaEntry? item, int status, string? error) GetByGuid(Guid guid)
         {
-            var e = _db.Media_GetByGuid(guid);             // MediaEntry? oder null
-            return e is null ? (null, 404, "Not found")
-                             : (e, 200, null);
+            if (guid == Guid.Empty) return (null, 400, "Guid required");
+
+            var item = _db.Media_GetByGuid(guid);
+            return item is null ? (null, 404, "Media not found") : (item, 200, null);
         }
 
-        // POST /api/media/
-        public (MediaEntry? item, int status, string? error) CreateMedia(MediaEntryDto dto, User creator)
+        // POST /api/media  (Creator wird aus dem Token übernommen; dto.UserGuid wird ignoriert/optional geprüft)
+        public (MediaEntry? item, int status, string? error) CreateMedia(MediaEntryDto dto, User requester)
         {
+            if (requester is null || requester.Id <= 0) return (null, 401, "Unauthorized");
             if (dto is null) return (null, 400, "Body required");
             if (string.IsNullOrWhiteSpace(dto.Title)) return (null, 400, "Title required");
-            if (creator is null || creator.Id <= 0) return (null, 404, "Creator not found");
 
-            var entity = _db.Media_Create(dto, creator); // erzeugt + INSERT
+            // Optional: wenn Client UserGuid mitsendet, muss er zum Token passen (sonst 403)
+            if (dto.UserGuid != Guid.Empty && dto.UserGuid != requester.Guid)
+                return (null, 403, "Forbidden");
+
+            var entity = _db.Media_Create(dto, requester);
             return (entity, 201, null);
         }
 
-        // DELETE /api/media
-        public (MediaEntry? item, int status, string? error) DeleteMedia(Guid guid)
+        // DELETE /api/media/{guid}
+        public (MediaEntry? item, int status, string? error) DeleteMedia(Guid mediaGuid, Guid requesterGuid)
         {
+            if (mediaGuid == Guid.Empty) return (null, 400, "Guid required");
+            if (requesterGuid == Guid.Empty) return (null, 401, "Unauthorized");
 
+            // Für saubere Statuscodes: erst Existenz + Owner prüfen
+            var existing = _db.Media_GetByGuid(mediaGuid);
+            if (existing is null) return (null, 404, "Media not found");
 
+            if (existing.Creator.Guid != requesterGuid)
+                return (null, 403, "Forbidden, you are not the owner");
+
+            // Safety-Guard in SQL: löscht nur, wenn ownerGuid passt
+            var deleted = _db.Media_Delete(mediaGuid, requesterGuid);
+            if (deleted is null)
+                return (null, 500, "Delete failed");
+
+            return (deleted, 200, null); // HTTP-Schicht kann daraus 204 machen, wenn sie keinen Body will
         }
     }
 }
-    
-

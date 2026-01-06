@@ -183,14 +183,14 @@ namespace MediaRating.Infrastructure
             return m;
         }
 
-        public MediaEntry Media_Delete(Guid guid, Guid ownerGuid)
+
+        public MediaEntry? Media_Delete(Guid guid, Guid ownerGuid)
         {
             using var con = Open();
             using var cmd = new NpgsqlCommand(@"
         DELETE FROM media_entries m
         USING users u
         WHERE m.guid = @g
-          AND u.id = m.creator_id
           AND u.id = m.creator_id
           AND u.guid = @ug
         RETURNING
@@ -200,11 +200,26 @@ namespace MediaRating.Infrastructure
 
             cmd.Parameters.AddWithValue("@g", guid);
             cmd.Parameters.AddWithValue("@ug", ownerGuid);
+
             using var rd = cmd.ExecuteReader();
             if (!rd.Read()) return null;
+
+            var creator = new User(rd.GetInt32(6), rd.GetString(8), "") { Guid = rd.GetGuid(7) };
+            var kind = rd.GetString(5);
+
+            MediaEntry m = kind switch
+            {
+                "Movie" => new Movie(rd.GetString(1), rd.IsDBNull(2) ? null : rd.GetString(2), rd.GetInt32(3), rd.GetInt32(4), creator),
+                "Series" => new Series(rd.GetString(1), rd.IsDBNull(2) ? null : rd.GetString(2), rd.GetInt32(3), rd.GetInt32(4), creator),
+                "Game" => new Game(rd.GetString(1), rd.IsDBNull(2) ? null : rd.GetString(2), rd.GetInt32(3), rd.GetInt32(4), creator),
+                _ => new Movie(rd.GetString(1), rd.IsDBNull(2) ? null : rd.GetString(2), rd.GetInt32(3), rd.GetInt32(4), creator)
+            };
+
+            m.Guid = rd.GetGuid(0);
+            return m;
         }
 
-        // Erstellt einen neuen Media-Eintrag in der DB.
+        // Erstellt einen neuen Media-Eintrag in der DB. in der DB.
         // ACHTUNG (Design-Hinweis): Hier wird ein DTO (MediaEntryDto) in der Infrastruktur benutzt.
         // Besser wäre: die Controller validieren + übergeben primitive Parameter (Title, Year, ...),
         // und die Infrastruktur macht nur das INSERT. Für jetzt lassen wir es so, damit es läuft.
