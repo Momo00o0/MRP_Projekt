@@ -47,7 +47,13 @@ namespace MediaRating.Api.Controller
 
                 string token = CreateToken(user);
                 var response = new { user.Id, user.Username, user.Guid, Token = token };
-                return (new { token = token }, 200, null);
+                return (new
+                {
+                    token = token,
+                    userGuid = user.Guid,
+                    username = user.Username
+                }, 200, null);
+
             }
             catch
             {

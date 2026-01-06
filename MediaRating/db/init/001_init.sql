@@ -17,13 +17,16 @@ CREATE TABLE IF NOT EXISTS media_entries (
 );
 
 CREATE TABLE IF NOT EXISTS ratings (
-  id       SERIAL PRIMARY KEY,
-  guid     UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
-  user_id  INT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-  media_id INT NOT NULL REFERENCES media_entries(id) ON DELETE RESTRICT,
-  stars    INT NOT NULL CHECK (stars BETWEEN 1 AND 5),
-  comment  TEXT,
-  timestamp TIMESTAMP NOT NULL,
-  confirmed BOOLEAN not NULL
-  
+  id        SERIAL PRIMARY KEY,
+  guid      UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+
+  user_id   INT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+
+  media_id  INT NOT NULL REFERENCES media_entries(id) ON DELETE CASCADE,
+
+  stars     INT NOT NULL CHECK (stars BETWEEN 1 AND 5),
+  comment   TEXT,
+
+  timestamp TIMESTAMP NOT NULL DEFAULT now(),
+  confirmed BOOLEAN NOT NULL DEFAULT false
 );
