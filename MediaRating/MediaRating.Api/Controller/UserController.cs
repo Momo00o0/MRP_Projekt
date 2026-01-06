@@ -9,12 +9,8 @@ namespace MediaRating.Api.Controller
 {
     public class UserController
     {
-        private readonly MediaRatingContext _db;
-
-        public UserController(MediaRatingContext db)
-        {
-            _db = db;
-        }
+        private readonly IMediaRatingContext _db;
+        public UserController(IMediaRatingContext db) { _db = db; }
 
         public List<User> GetAllUsers()
         {
@@ -51,7 +47,7 @@ namespace MediaRating.Api.Controller
 
                 string token = CreateToken(user);
                 var response = new { user.Id, user.Username, user.Guid, Token = token };
-                return (response, 200, null);
+                return (new { token = token }, 200, null);
             }
             catch
             {

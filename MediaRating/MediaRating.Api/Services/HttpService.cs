@@ -100,47 +100,7 @@ public class HttpService
                     }
 
                 // ---------- MEDIA ----------
-                case "GET" when path.Equals("/api/media", StringComparison.OrdinalIgnoreCase):
-                    {
-                        var (items, code, err) = _media.GetAll();
-                        if (err != null) { await Send(res, code, Error(err)); break; }
-
-                        var payload = items!.Select(m => new
-                        {
-                            m.Guid,
-                            Kind = m switch { Movie => "Movie", Series => "Series", Game => "Game", _ => "Media" },
-                            m.Title,
-                            m.Description,
-                            m.AgeRestriction,
-                            m.ReleaseYear,
-                            Creator = new { m.Creator.Guid, m.Creator.Username }
-                        });
-
-                        await Send(res, 200, payload);
-                        break;
-                    }
-
-                case "GET" when path.StartsWith("/api/media/", StringComparison.OrdinalIgnoreCase):
-                    {
-                        var guidStr = path.Substring("/api/media/".Length);
-                        if (!Guid.TryParse(guidStr, out var mediaGuid))
-                        { await Send(res, 400, Error("Invalid media guid")); break; }
-
-                        var (item, code, err) = _media.GetByGuid(mediaGuid);
-                        if (err != null) { await Send(res, code, Error(err)); break; }
-
-                        await Send(res, 200, new
-                        {
-                            item!.Guid,
-                            Kind = item switch { Movie => "Movie", Series => "Series", Game => "Game", _ => "Media" },
-                            item.Title,
-                            item.Description,
-                            item.AgeRestriction,
-                            item.ReleaseYear,
-                            Creator = new { item.Creator.Guid, item.Creator.Username }
-                        });
-                        break;
-                    }
+              
 
                 case "POST" when path.Equals("/api/media", StringComparison.OrdinalIgnoreCase):
                     {
@@ -149,6 +109,35 @@ public class HttpService
 
                         var dto = await Body<MediaEntryDto>(req);
                         var (entity, code, err) = _media.CreateMedia(dto!, user!);
+                        if (err != null) { await Send(res, code, Error(err)); break; }
+
+                        await Send(res, code, new
+                        {
+                            entity!.Guid,
+                            Kind = entity switch { Movie => "Movie", Series => "Series", Game => "Game", _ => "Media" },
+                            entity.Title,
+                            entity.Description,
+                            entity.AgeRestriction,
+                            entity.ReleaseYear,
+                            Creator = new { entity.Creator.Guid, entity.Creator.Username }
+                        });
+                        break;
+                    }
+                case "PUT" when path.StartsWith("/api/media/", StringComparison.OrdinalIgnoreCase):
+                    {
+                        var (ok, user) = CheckToken(req);
+                        if (!ok) { await Send(res, 401, Error("Unauthorized - Valid token required")); break; }
+
+                        var guidStr = path.Substring("/api/media/".Length).TrimEnd('/');
+                        if (!Guid.TryParse(guidStr, out var mediaGuid))
+                        { await Send(res, 400, Error("Invalid media guid")); break; }
+
+                        var dto = await Body<MediaUpdateDto>(req);
+                        if (dto is null) { await Send(res, 400, Error("Body required")); break; }
+                        if (string.IsNullOrWhiteSpace(dto.Title)) { await Send(res, 400, Error("Title required")); break; }
+                        if (dto.Description is null) { await Send(res, 400, Error("Description required")); break; } // zur Sicherheit
+
+                        var (entity, code, err) = _media.UpdateMedia(mediaGuid, dto, user!);
                         if (err != null) { await Send(res, code, Error(err)); break; }
 
                         await Send(res, code, new
@@ -181,6 +170,58 @@ public class HttpService
                         break;
                     }
 
+                case "GET" when path.StartsWith("/api/media/avg/", StringComparison.OrdinalIgnoreCase):
+                    {
+                        var guidStr = path.Substring("/api/media/avg/".Length).TrimEnd('/');
+                        if (!Guid.TryParse(guidStr, out var mediaGuid))
+                        { await Send(res, 400, Error("Invalid media guid")); break; }
+
+                        var (data, code, err) = _media.GetAverageRating(mediaGuid);
+                        await Send(res, code, err is null ? data! : Error(err));
+                        break;
+                    }
+                case "GET" when path.StartsWith("/api/media/", StringComparison.OrdinalIgnoreCase):
+                    {
+                        var guidStr = path.Substring("/api/media/".Length);
+                        if (!Guid.TryParse(guidStr, out var mediaGuid))
+                        { await Send(res, 400, Error("Invalid media guid")); break; }
+
+                        var (item, code, err) = _media.GetByGuid(mediaGuid);
+                        if (err != null) { await Send(res, code, Error(err)); break; }
+
+                        await Send(res, 200, new
+                        {
+                            item!.Guid,
+                            Kind = item switch { Movie => "Movie", Series => "Series", Game => "Game", _ => "Media" },
+                            item.Title,
+                            item.Description,
+                            item.AgeRestriction,
+                            item.ReleaseYear,
+                            Creator = new { item.Creator.Guid, item.Creator.Username }
+                        });
+                        break;
+                    }
+
+                case "GET" when path.Equals("/api/media", StringComparison.OrdinalIgnoreCase):
+                    {
+                        var (items, code, err) = _media.GetAll();
+                        if (err != null) { await Send(res, code, Error(err)); break; }
+
+                        var payload = items!.Select(m => new
+                        {
+                            m.Guid,
+                            Kind = m switch { Movie => "Movie", Series => "Series", Game => "Game", _ => "Media" },
+                            m.Title,
+                            m.Description,
+                            m.AgeRestriction,
+                            m.ReleaseYear,
+                            Creator = new { m.Creator.Guid, m.Creator.Username }
+                        });
+
+                        await Send(res, 200, payload);
+                        break;
+                    }
+
                 // ---------- RATINGS ----------
                 case "POST" when path.Equals("/api/ratings", StringComparison.OrdinalIgnoreCase):
                     {
@@ -198,18 +239,62 @@ public class HttpService
                         { await Send(res, 400, Error("Invalid media guid")); break; }
 
                         var (items, code, err) = _ratings.GetForMedia(mg);
-                        await Send(res, code, err is null ? items! : Error(err));
+                        await Send(res, code, err is null ? items!.Select(items => new
+                        {
+                            items.Stars,
+                            items.Comment,
+                            items.Timestamp,
+                            items.Confirmed,
+                            items.Guid,
+                            Creator = new { items.Creator.Username },   
+                            Media = new { items.Media.Title }           
+                        }) : Error(err));
                         break;
                     }
 
-                case "DELETE" when path.Equals("/api/ratings/", StringComparison.OrdinalIgnoreCase):
+                case "PUT" when path.StartsWith("/api/ratings/", StringComparison.OrdinalIgnoreCase):
                     {
-                        if (!Guid.TryParse(req.QueryString["user"], out var ug) ||
-                            !Guid.TryParse(req.QueryString["media"], out var mg))
-                        { await Send(res, 400, Error("Invalid query")); break; }
+                        var (ok, user) = CheckToken(req);
+                        if (!ok) { await Send(res, 401, Error("Unauthorized")); break; }
 
-                        var (msg, code, err) = _ratings.Delete(ug, mg);
-                        await Send(res, code, err is null ? new { message = msg } : Error(err));
+                        var guidStr = path.Substring("/api/ratings/".Length).TrimEnd('/');
+                        if (!Guid.TryParse(guidStr, out var ratingGuid))
+                        { await Send(res, 400, Error("Invalid rating guid")); break; }
+
+                        var dto = await Body<RatingUpdateDto>(req);
+                        if (dto is null) { await Send(res, 400, Error("Body required")); break; }
+
+                        var (item, code, err) = _ratings.UpdateRating(ratingGuid, dto, user!);
+                        if (err != null) { await Send(res, code, Error(err)); break; }
+
+                        // Response ohne Passwort (nur Username)
+                        await Send(res, 200, new
+                        {
+                            item!.Guid,
+                            item.Stars,
+                            item.Comment,
+                            item.Timestamp,
+                            item.Confirmed,
+                            Creator = new { item.Creator.Guid, item.Creator.Username },
+                            Media = new { item.Media.Guid, item.Media.Title }
+                        });
+
+                        break;
+                    }
+
+                case "DELETE" when path.StartsWith("/api/ratings/", StringComparison.OrdinalIgnoreCase):
+                    {
+                        var (ok, user) = CheckToken(req);
+                        if (!ok) { await Send(res, 401, Error("Unauthorized - Valid token required")); break; }
+
+                        var guidStr = path.Substring("/api/ratings/".Length).TrimEnd('/');
+                        if (!Guid.TryParse(guidStr, out var ratingGuid))
+                        { await Send(res, 400, Error("Invalid rating guid")); break; }
+
+                        var (success, code, err) = _ratings.DeleteRating(ratingGuid, user!);
+                        if (err != null) { await Send(res, code, Error(err)); break; }
+
+                        await Send(res, 204, null);
                         break;
                     }
 

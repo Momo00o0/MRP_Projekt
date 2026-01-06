@@ -14,9 +14,8 @@ namespace MediaRating.Api.Controller
     /// </summary>
     public class MediaController
     {
-        private readonly MediaRatingContext _db;
-
-        public MediaController(MediaRatingContext db) { _db = db; }
+      private readonly IMediaRatingContext _db;
+public MediaController(IMediaRatingContext db) { _db = db; }
 
         // GET /api/media
         public (List<MediaEntry>? items, int status, string? error) GetAll()
@@ -49,6 +48,25 @@ namespace MediaRating.Api.Controller
             return (entity, 201, null);
         }
 
+        // UPDATE /api/media/{guid}
+        public (MediaEntry? item, int status, string? error) UpdateMedia(Guid mediaGuid, MediaUpdateDto dto, User requester)
+        {
+            if (mediaGuid == Guid.Empty) return (null, 400, "Guid required");
+            if (requester is null) return (null, 401, "Unauthorized");
+
+            var existing = _db.Media_GetByGuid(mediaGuid);
+            if (existing is null) return (null, 404, "Media not found");
+
+            if (existing.Creator.Guid != requester.Guid)
+                return (null, 403, "Forbidden your are not the owner");
+
+            var updated = _db.Media_Update(mediaGuid, dto, requester.Guid);
+            if (updated is null) return (null, 500, "Update failed");
+
+            return (updated, 200, null);
+        }
+
+
         // DELETE /api/media/{guid}
         public (MediaEntry? item, int status, string? error) DeleteMedia(Guid mediaGuid, Guid requesterGuid)
         {
@@ -69,5 +87,21 @@ namespace MediaRating.Api.Controller
 
             return (deleted, 200, null); // HTTP-Schicht kann daraus 204 machen, wenn sie keinen Body will
         }
+
+        public (object? data, int status, string? error) GetAverageRating(Guid mediaGuid)
+        {
+            if (mediaGuid == Guid.Empty) return (null, 400, "Guid required");
+
+            var stats = _db.Get_MediaAvg(mediaGuid);
+            if (stats is null) return (null, 404, "Media not found");
+
+            return (new
+            {
+                mediaGuid,
+                avgRating = stats.Value.Avg,
+                ratingCount = stats.Value.Count
+            }, 200, null);
+        }
+
     }
 }

@@ -8,8 +8,8 @@ namespace MediaRating.Api.Controller
 {
     public class RatingController
     {
-        private readonly MediaRatingContext _db;
-        public RatingController(MediaRatingContext db) => _db = db;
+        private readonly IMediaRatingContext _db;
+        public RatingController(IMediaRatingContext db) { _db = db; }
 
         // POST /api/ratings  (nur neu, kein Update)
         public (string msg, int status, string? error) Create(RatingCreateDto dto)
@@ -20,7 +20,7 @@ namespace MediaRating.Api.Controller
             try
             {
                 if (_db.Ratings_Exists(dto.UserGuid, dto.MediaGuid))
-                    return ("", 409, "Rating already exists"); 
+                    return ("", 409, "You already gave a rating to this MediaEntry"); 
 
                 _db.Ratings_Insert(dto.UserGuid, dto.MediaGuid, dto.Stars, dto.Comment);
                 return ("created", 201, null);
@@ -67,20 +67,36 @@ namespace MediaRating.Api.Controller
             }
         }
 
-       
-
-        // DELETE /api/ratings?user={u}&media={m}
-        public (string msg, int status, string? error) Delete(Guid userGuid, Guid mediaGuid)
+        public (Rating? item, int status, string? error) UpdateRating(Guid ratingGuid, RatingUpdateDto dto, User requester)
         {
-            try
-            {
-                var rows = _db.Ratings_Delete(userGuid, mediaGuid);
-                return rows > 0 ? ("deleted", 200, null) : ("", 404, "Rating not found");
-            }
-            catch
-            {
-                return ("", 500, "Delete failed");
-            }
+            if (ratingGuid == Guid.Empty) return (null, 400, "Guid required");
+            if (requester is null) return (null, 401, "Unauthorized");
+
+            if (dto.Stars < 1 || dto.Stars > 5)
+                return (null, 400, "Stars must be between 1 and 5");
+
+
+            var updated = _db.Rating_Update(ratingGuid, requester.Guid, dto);
+            if (updated is null) return (null, 500, "Update failed");
+
+            return (updated, 200, null);
         }
+
+
+        public (bool ok, int status, string? error) DeleteRating(Guid ratingGuid, User requester)
+        {
+            if (ratingGuid == Guid.Empty) return (false, 400, "Guid required");
+            if (requester is null) return (false, 401, "Unauthorized");
+
+         
+
+            var ok = _db.Rating_Delete(ratingGuid, requester.Guid);
+            if (!ok) return (false, 500, "Delete rating failed");
+
+            return (true, 204, null);
+        }
+
+
+
     }
 }

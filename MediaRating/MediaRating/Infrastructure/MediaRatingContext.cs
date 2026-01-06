@@ -9,7 +9,7 @@ using MediaRating.DTOs;
 
 namespace MediaRating.Infrastructure
 {
-    public class MediaRatingContext
+    public class MediaRatingContext : IMediaRatingContext
     {
         // Liest den Connection String genau EINMAL beim Laden der Klasse.
         // Wenn die Umgebungsvariable PG_CONN fehlt, werfen wir eine klare Exception.
@@ -254,7 +254,81 @@ namespace MediaRating.Infrastructure
             return entity;
         }
 
+        public MediaEntry? Media_Update(Guid mediaGuid, MediaUpdateDto dto, Guid ownerGuid)
+        {
+            using var con = Open();
+            using var cmd = new NpgsqlCommand(@"
+        UPDATE media_entries m
+           SET title = @t,
+               description = @d,
+               release_year = @y,
+               age_restriction = @a,
+                kind = @k
+          FROM users u
+         WHERE m.guid = @g
+           AND u.id = m.creator_id
+           AND u.guid = @ug
+        RETURNING
+            m.guid, m.title, m.description, m.release_year, m.age_restriction, m.kind,
+            u.id, u.guid, u.username;
+    ", con);
 
+            cmd.Parameters.AddWithValue("@g", mediaGuid);
+            cmd.Parameters.AddWithValue("@ug", ownerGuid);
+
+            cmd.Parameters.AddWithValue("@t", dto.Title);
+            cmd.Parameters.AddWithValue("@d", dto.Description);
+            cmd.Parameters.AddWithValue("@y", dto.ReleaseYear);
+            cmd.Parameters.AddWithValue("@a", dto.AgeRestriction);
+            cmd.Parameters.AddWithValue("@k", dto.Kind.ToString());
+
+            using var rd = cmd.ExecuteReader();
+            if (!rd.Read()) return null; // nicht gefunden oder nicht owner
+
+            var creator = new User(rd.GetInt32(6), rd.GetString(8), "") { Guid = rd.GetGuid(7) };
+            var kind = rd.GetString(5);
+
+            var title = rd.GetString(1);
+            var desc = rd.IsDBNull(2) ? "" : rd.GetString(2); // ✅ passt zu deinem Model (nie null)
+
+            MediaEntry m = kind switch
+            {
+                "Movie" => new Movie(title, desc, rd.GetInt32(3), rd.GetInt32(4), creator),
+                "Series" => new Series(title, desc, rd.GetInt32(3), rd.GetInt32(4), creator),
+                "Game" => new Game(title, desc, rd.GetInt32(3), rd.GetInt32(4), creator),
+                _ => new Movie(title, desc, rd.GetInt32(3), rd.GetInt32(4), creator)
+            };
+
+            m.Guid = rd.GetGuid(0);
+            return m;
+        }
+
+
+        // Average
+       public (double Avg, int Count)? Get_MediaAvg(Guid mediaGuid)
+        {
+            using var con = Open();
+            using var cmd = new NpgsqlCommand(@"
+        SELECT
+            COALESCE(AVG(r.stars), 0) AS avg_rating,
+            COUNT(r.id)              AS rating_count
+        FROM media_entries m
+        LEFT JOIN ratings r ON r.media_id = m.id
+        WHERE m.guid = @g
+        GROUP BY m.id;
+    ", con);
+
+            cmd.Parameters.AddWithValue("@g", mediaGuid);
+
+            using var rd = cmd.ExecuteReader();
+            if (!rd.Read()) return null; // Medium nicht gefunden
+
+            // AVG ist in PG oft numeric -> Npgsql liefert decimal -> Convert ist sicher
+            var avg = Convert.ToDouble(rd.GetValue(rd.GetOrdinal("avg_rating")));
+            var count = rd.GetInt32(rd.GetOrdinal("rating_count"));
+
+            return (avg, count);
+        }
 
 
         // RATINGS
@@ -300,8 +374,8 @@ namespace MediaRating.Infrastructure
             var mediaId = RequireMediaId(con, mediaGuid);
 
             using var cmd = new NpgsqlCommand(@"
-                INSERT INTO ratings (user_id, media_id, stars, comment)
-                VALUES (@u, @m, @s, @c);", con);
+                INSERT INTO ratings (user_id, media_id, stars, comment, confirmed, timestamp)
+                VALUES (@u, @m, @s, @c, false, now());", con);
             cmd.Parameters.AddWithValue("@u", userId);
             cmd.Parameters.AddWithValue("@m", mediaId);
             cmd.Parameters.AddWithValue("@s", stars);
@@ -323,7 +397,7 @@ namespace MediaRating.Infrastructure
         {
             using var con = Open();
             using var cmd = new NpgsqlCommand(@"
-                SELECT r.stars, r.comment,
+                SELECT r.guid AS rguid, r.stars, r.comment,
                        u.id   AS uid,   u.guid AS uguid,   u.username,
                        m.id   AS mid,   m.guid AS mguid,   m.title
                   FROM ratings r
@@ -353,7 +427,7 @@ namespace MediaRating.Infrastructure
                     creator: creator,
                     media: media
                 );
-
+                rating.Guid = rd.GetGuid(rd.GetOrdinal("rguid"));
                 list.Add(rating);
             }
             return list;
@@ -396,31 +470,115 @@ namespace MediaRating.Infrastructure
             return list;
         }
 
-        // READ: Durchschnitt für ein Media (null wenn keine Ratings)
-        public double? Media_GetAverageScore(Guid mediaGuid)
+
+        public Rating? Rating_Update(Guid ratingGuid, Guid ownerGuid, RatingUpdateDto dto)
         {
             using var con = Open();
             using var cmd = new NpgsqlCommand(@"
-                SELECT AVG(stars)::float
-                  FROM ratings r
-                  JOIN media_entries m ON m.id = r.media_id
-                 WHERE m.guid=@g;", con);
-            cmd.Parameters.AddWithValue("@g", mediaGuid);
-            var r = cmd.ExecuteScalar();
-            return r is DBNull or null ? (double?)null : Convert.ToDouble(r);
+        UPDATE ratings r
+           SET stars = @s,
+               comment = @c,
+               timestamp = now()
+          FROM users ru, media_entries m, users mu
+         WHERE r.guid = @g
+           AND ru.id = r.user_id
+           AND ru.guid = @ug
+           AND m.id = r.media_id
+           AND mu.id = m.creator_id
+        RETURNING
+           r.guid           AS rating_guid,
+           r.stars          AS stars,
+           r.comment        AS comment,
+           r.timestamp      AS timestamp,
+           r.confirmed      AS confirmed,
+
+           ru.id            AS rating_creator_id,
+           ru.guid          AS rating_creator_guid,
+           ru.username      AS rating_creator_username,
+
+           m.guid           AS media_guid,
+           m.title          AS media_title,
+           m.description    AS media_description,
+           m.release_year   AS media_release_year,
+           m.age_restriction AS media_age_restriction,
+           m.kind           AS media_kind,
+
+           mu.id            AS media_creator_id,
+           mu.guid          AS media_creator_guid,
+           mu.username      AS media_creator_username;
+    ", con);
+
+            cmd.Parameters.AddWithValue("@g", ratingGuid);
+            cmd.Parameters.AddWithValue("@ug", ownerGuid);
+
+            cmd.Parameters.AddWithValue("@s", dto.Stars);
+            cmd.Parameters.AddWithValue("@c", (object?)dto.Comment ?? DBNull.Value);
+
+            using var rd = cmd.ExecuteReader();
+            if (!rd.Read()) return null; // nicht gefunden ODER nicht owner
+
+            // Rating-Creator (der User, der das Rating erstellt hat)
+            var ratingCreator = new User(
+                rd.GetInt32(rd.GetOrdinal("rating_creator_id")),
+                rd.GetString(rd.GetOrdinal("rating_creator_username")),
+                ""
+            )
+            { Guid = rd.GetGuid(rd.GetOrdinal("rating_creator_guid")) };
+
+            // Media-Creator
+            var mediaCreator = new User(
+                rd.GetInt32(rd.GetOrdinal("media_creator_id")),
+                rd.GetString(rd.GetOrdinal("media_creator_username")),
+                ""
+            )
+            { Guid = rd.GetGuid(rd.GetOrdinal("media_creator_guid")) };
+
+            // MediaEntry bauen (je nach kind)
+            var kind = rd.GetString(rd.GetOrdinal("media_kind"));
+            var title = rd.GetString(rd.GetOrdinal("media_title"));
+            var desc = rd.IsDBNull(rd.GetOrdinal("media_description")) ? "" : rd.GetString(rd.GetOrdinal("media_description"));
+
+            MediaEntry media = kind switch
+            {
+                "Movie" => new Movie(title, desc, rd.GetInt32(rd.GetOrdinal("media_release_year")), rd.GetInt32(rd.GetOrdinal("media_age_restriction")), mediaCreator),
+                "Series" => new Series(title, desc, rd.GetInt32(rd.GetOrdinal("media_release_year")), rd.GetInt32(rd.GetOrdinal("media_age_restriction")), mediaCreator),
+                "Game" => new Game(title, desc, rd.GetInt32(rd.GetOrdinal("media_release_year")), rd.GetInt32(rd.GetOrdinal("media_age_restriction")), mediaCreator),
+                _ => new Movie(title, desc, rd.GetInt32(rd.GetOrdinal("media_release_year")), rd.GetInt32(rd.GetOrdinal("media_age_restriction")), mediaCreator)
+            };
+
+            media.Guid = rd.GetGuid(rd.GetOrdinal("media_guid"));
+
+            // Rating bauen
+            var rating = new Rating(
+                stars: rd.GetInt32(rd.GetOrdinal("stars")),
+                comment: rd.IsDBNull(rd.GetOrdinal("comment")) ? null : rd.GetString(rd.GetOrdinal("comment")),
+                timeStamp: rd.GetDateTime(rd.GetOrdinal("timestamp")),
+                confirmed: rd.GetBoolean(rd.GetOrdinal("confirmed")),
+                creator: ratingCreator,
+                media: media
+            );
+
+            rating.Guid = rd.GetGuid(rd.GetOrdinal("rating_guid"));
+
+            return rating;
         }
 
-        // DELETE: Rating des Users für ein Media (falls mehrere in DB erlaubt wären, löschen wir alle)
-        public int Ratings_Delete(Guid userGuid, Guid mediaGuid)
+        //DELETE
+        public bool Rating_Delete(Guid ratingGuid, Guid ownerGuid)
         {
             using var con = Open();
             using var cmd = new NpgsqlCommand(@"
-                DELETE FROM ratings
-                 WHERE user_id  = (SELECT id FROM users WHERE guid=@ug)
-                   AND media_id = (SELECT id FROM media_entries WHERE guid=@mg);", con);
-            cmd.Parameters.AddWithValue("@ug", userGuid);
-            cmd.Parameters.AddWithValue("@mg", mediaGuid);
-            return cmd.ExecuteNonQuery(); // Anzahl gelöschter Zeilen
+        DELETE FROM ratings r
+        USING users u
+        WHERE r.guid = @g
+          AND u.id = r.user_id
+          AND u.guid = @ug;
+    ", con);
+
+            cmd.Parameters.AddWithValue("@g", ratingGuid);
+            cmd.Parameters.AddWithValue("@ug", ownerGuid);
+
+            return cmd.ExecuteNonQuery() == 1;
         }
     }
 }
