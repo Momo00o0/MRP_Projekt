@@ -6,19 +6,19 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using MediaRating.DTOs;
+using System.Data;
 
 namespace MediaRating.Infrastructure
 {
     public class MediaRatingContext : IMediaRatingContext
     {
-        // Liest den Connection String genau EINMAL beim Laden der Klasse.
+       
         
         private static readonly string Conn =
             Environment.GetEnvironmentVariable("PG_CONN")
             ?? throw new InvalidOperationException("PG_CONN not set.");
 
         // Kleine Hilfsfunktion: macht eine neue DB-Verbindung auf und gibt sie geöffnet zurück.
-        // Vorteil: In jeder Methode reicht "using var con = Open();" und wir haben eine fertige Verbindung.
         private static NpgsqlConnection Open()
         {
             var c = new NpgsqlConnection(Conn);
@@ -30,7 +30,7 @@ namespace MediaRating.Infrastructure
         //            USERS
 
         // Holt ALLE Benutzer aus der Tabelle "users".
-        // Mapped jede DB-Zeile auf ein User-Objekt (Id, Guid, Username, Password-Hash).
+       
         public List<User> Users_GetAll()
         {
             using var con = Open();
@@ -82,9 +82,6 @@ namespace MediaRating.Infrastructure
         }
 
         // Legt einen neuen Benutzer in der DB an.
-        // - username: gewünschter Benutzername
-        // - passwordHash: bereits gehashter Passwort-String
-        // - fixedGuid: optionaler fixer Guid (z.B. für Tests); sonst wird ein neuer Guid erzeugt.
         // Rückgabe: der gerade eingefügte User mit DB-Id und Guid.
         public User Users_Insert(string username, string passwordHash, Guid? fixedGuid = null)
         {
@@ -97,7 +94,7 @@ namespace MediaRating.Infrastructure
             cmd.Parameters.AddWithValue("@u", username);
             cmd.Parameters.AddWithValue("@p", passwordHash);
 
-            // RETURNING liefert uns direkt id + guid der neuen Zeile.
+           
             using var rd = cmd.ExecuteReader();
             rd.Read();
 
@@ -112,10 +109,9 @@ namespace MediaRating.Infrastructure
 
         //           MEDIA
 
-        // Holt ALLE Media-Einträge (Movie/Series/Game) inklusive Ersteller (User).
+        // Holt ALLE Media-Einträge
         // Mapping:
         //   - kind steuert, welche konkrete Klasse instanziiert wird (Movie/Series/Game).
-        //   - description kann in der DB NULL sein → rd.IsDBNull(2) prüfen und entsprechend zuweisen.
         public List<MediaEntry> Media_GetAll()
         {
             using var con = Open();
@@ -130,14 +126,13 @@ namespace MediaRating.Infrastructure
             var list = new List<MediaEntry>();
             while (rd.Read())
             {
-                // Creator-User aus den Spalten 6..8 aufbauen
+              
                 var creator = new User(rd.GetInt32(6), rd.GetString(8), "") { Guid = rd.GetGuid(7) };
 
-                // Art des Media-Eintrags (Movie/Series/Game)
+               
                 var kind = rd.GetString(5);
 
-                // Instanz passend zum kind erzeugen.
-                // description (Spalte 2) kann NULL sein → rd.IsDBNull(2) prüfen.
+                // Instanz passend zum kind erzeugen
                 MediaEntry m = kind switch
                 {
                     "Movie" => new Movie(rd.GetString(1), rd.IsDBNull(2) ? null : rd.GetString(2), rd.GetInt32(3), rd.GetInt32(4), creator),
@@ -146,7 +141,7 @@ namespace MediaRating.Infrastructure
                     _ => new Movie(rd.GetString(1), rd.IsDBNull(2) ? null : rd.GetString(2), rd.GetInt32(3), rd.GetInt32(4), creator)
                 };
 
-                // Den Guid des Media-Eintrags setzen (Spalte 0).
+
                 m.Guid = rd.GetGuid(0);
 
                 list.Add(m);
@@ -154,7 +149,7 @@ namespace MediaRating.Infrastructure
             return list;
         }
 
-        // Holt GENAU EINEN Media-Eintrag per Guid (inkl. Creator).
+        // Holt GENAU EINEN Media-Eintrag per Guid
         // Gibt null zurück, wenn nichts gefunden wird.
         public MediaEntry? Media_GetByGuid(Guid guid)
         {
@@ -183,7 +178,7 @@ namespace MediaRating.Infrastructure
             return m;
         }
 
-
+        //löscht einen MediaEntry
         public MediaEntry? Media_Delete(Guid guid, Guid ownerGuid)
         {
             using var con = Open();
@@ -219,13 +214,11 @@ namespace MediaRating.Infrastructure
             return m;
         }
 
-        // Erstellt einen neuen Media-Eintrag in der DB. in der DB.
-        // ACHTUNG (Design-Hinweis): Hier wird ein DTO (MediaEntryDto) in der Infrastruktur benutzt.
-        // Besser wäre: die Controller validieren + übergeben primitive Parameter (Title, Year, ...),
-        // und die Infrastruktur macht nur das INSERT. Für jetzt lassen wir es so, damit es läuft.
+        // Erstellt einen neuen Media-Eintrag in der 
+        
         public MediaEntry Media_Create(MediaEntryDto dto, User creator)
         {
-            var g = Guid.NewGuid(); // neuer Guid für den Media-Eintrag
+            var g = Guid.NewGuid(); 
 
             using var con = Open();
             using var cmd = new NpgsqlCommand(@"
@@ -242,7 +235,7 @@ namespace MediaRating.Infrastructure
             cmd.Parameters.AddWithValue("@c", creator.Id);
             cmd.ExecuteNonQuery(); // INSERT ausführen
 
-            // Passendes Domain-Objekt zurückgeben (inkl. gesetztem Guid).
+            
             MediaEntry entity = dto.Kind switch
             {
                 MediaKind.Movie => new Movie(dto.Title, dto.Description!, dto.ReleaseYear, dto.AgeRestriction, creator),
@@ -321,7 +314,7 @@ namespace MediaRating.Infrastructure
             cmd.Parameters.AddWithValue("@g", mediaGuid);
 
             using var rd = cmd.ExecuteReader();
-            if (!rd.Read()) return null; // Medium nicht gefunden
+            if (!rd.Read()) return null; 
 
             // AVG ist in PG oft numeric -> Npgsql liefert decimal -> Convert ist sicher
             var avg = Convert.ToDouble(rd.GetValue(rd.GetOrdinal("avg_rating")));
@@ -366,7 +359,7 @@ namespace MediaRating.Infrastructure
             return cmd.ExecuteScalar() != null;
         }
 
-        // CREATE: neues Rating anlegen (wir verlassen uns auf den Unique-Index für Kollisionen)
+        // CREATE: neues Rating anlegen
         public void Ratings_Insert(Guid userGuid, Guid mediaGuid, int stars, string? comment)
         {
             using var con = Open();
@@ -392,12 +385,12 @@ namespace MediaRating.Infrastructure
             }
         }
 
-        // READ: alle Ratings zu einem Media (einfaches Mapping in deine Rating-Klasse)
+        // READ: alle Ratings zu einem Media 
         public List<Rating> Ratings_GetForMedia(Guid mediaGuid)
         {
             using var con = Open();
             using var cmd = new NpgsqlCommand(@"
-                SELECT r.guid AS rguid, r.stars, r.comment,
+                SELECT r.guid AS rguid, r.stars, r.comment, r.timestamp, r.confirmed,
                        u.id   AS uid,   u.guid AS uguid,   u.username,
                        m.id   AS mid,   m.guid AS mguid,   m.title
                   FROM ratings r
@@ -415,15 +408,15 @@ namespace MediaRating.Infrastructure
                                        rd.GetString(rd.GetOrdinal("username")), "")
                 { Guid = rd.GetGuid(rd.GetOrdinal("uguid")) };
 
-                // simples Media-Objekt (Titel reicht meistens für Anzeige)
-                var mediaOwner = creator; // creator des Media-Eintrags ist bei dir ohnehin separat vorhanden
+                
+                var mediaOwner = creator; 
                 var media = new Movie(rd.GetString(rd.GetOrdinal("title")), null, 0, 0, mediaOwner);
 
                 var rating = new Rating(
                     stars: rd.GetInt32(rd.GetOrdinal("stars")),
                     comment: rd.IsDBNull(rd.GetOrdinal("comment")) ? null : rd.GetString(rd.GetOrdinal("comment")),
-                    timeStamp: DateTime.UtcNow,   // DB hat kein timestamp-Feld
-                    confirmed: false,             // DB hat kein confirmed
+                    timeStamp: rd.GetDateTime(rd.GetOrdinal("timestamp")),   
+                    confirmed: rd.GetBoolean(rd.GetOrdinal("confirmed")),             
                     creator: creator,
                     media: media
                 );
@@ -438,7 +431,7 @@ namespace MediaRating.Infrastructure
         {
             using var con = Open();
             using var cmd = new NpgsqlCommand(@"
-                SELECT r.stars, r.comment,
+                SELECT r.guid AS rguid, r.stars, r.comment, r.timestamp, r.confirmed,
                        u.id AS uid, u.guid AS uguid, u.username,
                        m.id AS mid, m.guid AS mguid, m.title
                   FROM ratings r
@@ -460,11 +453,12 @@ namespace MediaRating.Infrastructure
                 var rating = new Rating(
                     stars: rd.GetInt32(rd.GetOrdinal("stars")),
                     comment: rd.IsDBNull(rd.GetOrdinal("comment")) ? null : rd.GetString(rd.GetOrdinal("comment")),
-                    timeStamp: DateTime.UtcNow,
-                    confirmed: false,
+                    timeStamp: rd.GetDateTime(rd.GetOrdinal("timestamp")),
+                    confirmed: rd.GetBoolean(rd.GetOrdinal("confirmed")),
                     creator: creator,
                     media: media
                 );
+                rating.Guid = rd.GetGuid(rd.GetOrdinal("rguid"));
                 list.Add(rating);
             }
             return list;

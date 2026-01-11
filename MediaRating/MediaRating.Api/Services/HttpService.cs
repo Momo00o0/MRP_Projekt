@@ -252,6 +252,27 @@ public class HttpService
                         break;
                     }
 
+                case "GET" when path.StartsWith("/api/ratings/user", StringComparison.OrdinalIgnoreCase)
+                         && !path.EndsWith("/avg", StringComparison.OrdinalIgnoreCase):
+                    {
+                        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length < 4 || !Guid.TryParse(parts[3], out var mg))
+                        { await Send(res, 400, Error("Invalid media guid")); break; }
+
+                        var (items, code, err) = _ratings.GetForUser(mg);
+                        await Send(res, code, err is null ? items!.Select(items => new
+                        {
+                            items.Stars,
+                            items.Comment,
+                            items.Timestamp,
+                            items.Confirmed,
+                            items.Guid,
+                            Creator = new { items.Creator.Username },
+                            Media = new { items.Media.Title }
+                        }) : Error(err));
+                        break;
+                    }
+
                 case "PUT" when path.StartsWith("/api/ratings/", StringComparison.OrdinalIgnoreCase):
                     {
                         var (ok, user) = CheckToken(req);
