@@ -12,7 +12,7 @@ namespace MediaRating.Infrastructure
     public class MediaRatingContext : IMediaRatingContext
     {
         // Liest den Connection String genau EINMAL beim Laden der Klasse.
-        // Wenn die Umgebungsvariable PG_CONN fehlt, werfen wir eine klare Exception.
+        
         private static readonly string Conn =
             Environment.GetEnvironmentVariable("PG_CONN")
             ?? throw new InvalidOperationException("PG_CONN not set.");
@@ -41,7 +41,7 @@ namespace MediaRating.Infrastructure
             var list = new List<User>();
             while (rd.Read())
             {
-                // Spalten-Indexe: 0=id, 1=guid, 2=username, 3=password_hash
+               
                 var u = new User(rd.GetInt32(0), rd.GetString(2), "") { Guid = rd.GetGuid(1) };
                 u.Password = rd.GetString(3);
                 list.Add(u);
@@ -50,7 +50,7 @@ namespace MediaRating.Infrastructure
         }
 
         // Sucht einen Benutzer per "username".
-        // Gibt null zurück, wenn kein Treffer vorhanden ist.
+        
         public User? Users_FindByUsername(string username)
         {
             using var con = Open();
@@ -66,7 +66,7 @@ namespace MediaRating.Infrastructure
         }
 
         // Sucht einen Benutzer per "guid".
-        // Gibt null zurück, wenn kein Treffer vorhanden ist.
+
         public User? Users_FindByGuid(Guid guid)
         {
             using var con = Open();
