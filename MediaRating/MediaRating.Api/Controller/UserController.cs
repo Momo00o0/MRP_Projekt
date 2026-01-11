@@ -1,4 +1,4 @@
-﻿using MediaRating.Api.Cmd;
+﻿
 using MediaRating.DTOs;
 using MediaRating.Infrastructure;
 using MediaRating.Model;

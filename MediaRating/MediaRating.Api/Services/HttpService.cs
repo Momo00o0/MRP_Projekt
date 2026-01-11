@@ -10,7 +10,7 @@ using MediaRating.Api.Controller;
 using MediaRating.DTOs;
 using MediaRating.Infrastructure;
 using MediaRating.Model;
-using MediaRating.Api.Cmd;
+
 
 namespace MediaRating.Api.Services;
 

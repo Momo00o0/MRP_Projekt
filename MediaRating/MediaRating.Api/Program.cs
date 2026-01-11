@@ -44,7 +44,11 @@ public static class Program
 
         Console.WriteLine("Listening on http://localhost:8080/");
 
+        while (true)
+        {
+            var ctx = await listener.GetContextAsync();
+            _ = Task.Run(() => http.HandleRequest(ctx)); 
+        }
 
-       
     }
 }
