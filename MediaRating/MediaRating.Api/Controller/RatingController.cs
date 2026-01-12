@@ -11,7 +11,7 @@ namespace MediaRating.Api.Controller
         private readonly IMediaRatingContext _db;
         public RatingController(IMediaRatingContext db) { _db = db; }
 
-        // POST /api/ratings  (nur neu, kein Update)
+        // POST /api/ratings  
         public (string msg, int status, string? error) Create(RatingCreateDto dto)
         {
             if (dto is null) return ("", 400, "Body required");
@@ -53,7 +53,7 @@ namespace MediaRating.Api.Controller
             }
         }
 
-        // (optional) GET /api/ratings/user/{userGuid}
+        // GET /api/ratings/user/{userGuid}
         public (List<Rating> items, int status, string? error) GetForUser(Guid userGuid)
         {
             try
@@ -67,6 +67,7 @@ namespace MediaRating.Api.Controller
             }
         }
 
+        // PUT api/ratings/{guid}
         public (Rating? item, int status, string? error) UpdateRating(Guid ratingGuid, RatingUpdateDto dto, User requester)
         {
             if (ratingGuid == Guid.Empty) return (null, 400, "Guid required");
@@ -82,7 +83,7 @@ namespace MediaRating.Api.Controller
             return (updated, 200, null);
         }
 
-
+        // DELETE api/ratings/{guid}
         public (bool ok, int status, string? error) DeleteRating(Guid ratingGuid, User requester)
         {
             if (ratingGuid == Guid.Empty) return (false, 400, "Guid required");

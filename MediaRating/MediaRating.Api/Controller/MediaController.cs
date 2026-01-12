@@ -7,11 +7,6 @@ using MediaRating.DTOs;
 
 namespace MediaRating.Api.Controller
 {
-    /// <summary>
-    /// Anwendungslogik / Use-Cases für MediaEntries.
-    /// Enthält Validierung + Berechtigungsprüfungen (Owner),
-    /// aber kein HTTP und kein SQL.
-    /// </summary>
     public class MediaController
     {
       private readonly IMediaRatingContext _db;
@@ -33,14 +28,14 @@ public MediaController(IMediaRatingContext db) { _db = db; }
             return item is null ? (null, 404, "Media not found") : (item, 200, null);
         }
 
-        // POST /api/media  (Creator wird aus dem Token übernommen; dto.UserGuid wird ignoriert/optional geprüft)
+        // POST /api/media  
         public (MediaEntry? item, int status, string? error) CreateMedia(MediaEntryDto dto, User requester)
         {
             if (requester is null || requester.Id <= 0) return (null, 401, "Unauthorized");
             if (dto is null) return (null, 400, "Body required");
             if (string.IsNullOrWhiteSpace(dto.Title)) return (null, 400, "Title required");
 
-            // Optional: wenn Client UserGuid mitsendet, muss er zum Token passen (sonst 403)
+           
             if (dto.UserGuid != Guid.Empty && dto.UserGuid != requester.Guid)
                 return (null, 403, "Forbidden");
 
@@ -73,19 +68,19 @@ public MediaController(IMediaRatingContext db) { _db = db; }
             if (mediaGuid == Guid.Empty) return (null, 400, "Guid required");
             if (requesterGuid == Guid.Empty) return (null, 401, "Unauthorized");
 
-            // Für saubere Statuscodes: erst Existenz + Owner prüfen
+          
             var existing = _db.Media_GetByGuid(mediaGuid);
             if (existing is null) return (null, 404, "Media not found");
 
             if (existing.Creator.Guid != requesterGuid)
                 return (null, 403, "Forbidden, you are not the owner");
 
-            // Safety-Guard in SQL: löscht nur, wenn ownerGuid passt
+            
             var deleted = _db.Media_Delete(mediaGuid, requesterGuid);
             if (deleted is null)
                 return (null, 500, "Delete failed");
 
-            return (deleted, 200, null); // HTTP-Schicht kann daraus 204 machen, wenn sie keinen Body will
+            return (deleted, 200, null);
         }
 
         public (object? data, int status, string? error) GetAverageRating(Guid mediaGuid)

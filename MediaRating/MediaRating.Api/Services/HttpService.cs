@@ -13,11 +13,6 @@ using MediaRating.Model;
 
 
 namespace MediaRating.Api.Services;
-
-/// <summary>
-/// Transport-Schicht: Routing, Auth, JSON parsen, HTTP Antworten senden.
-/// Keine Business-Logik (Owner-Regeln etc.) – das macht der Controller.
-/// </summary>
 public class HttpService
 {
     private readonly MediaRatingContext _db;
@@ -48,16 +43,7 @@ public class HttpService
 
         try
         {
-            // CORS Preflight (optional)
-            if (req.HttpMethod.Equals("OPTIONS", StringComparison.OrdinalIgnoreCase))
-            {
-                AddCorsHeaders(res);
-                res.StatusCode = 204;
-                res.Close();
-                return;
-            }
-
-            AddCorsHeaders(res);
+         
 
             // Pfad normalisieren
             var path = req.Url!.AbsolutePath;
@@ -288,7 +274,7 @@ public class HttpService
                         var (item, code, err) = _ratings.UpdateRating(ratingGuid, dto, user!);
                         if (err != null) { await Send(res, code, Error(err)); break; }
 
-                        // Response ohne Passwort (nur Username)
+                       
                         await Send(res, 200, new
                         {
                             item!.Guid,
@@ -302,6 +288,7 @@ public class HttpService
 
                         break;
                     }
+
 
                 case "DELETE" when path.StartsWith("/api/ratings/", StringComparison.OrdinalIgnoreCase):
                     {

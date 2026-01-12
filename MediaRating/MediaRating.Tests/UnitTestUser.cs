@@ -15,7 +15,7 @@ public class UnitTestUser
     private static User MakeUser(int id, Guid guid, string username, string plainPassword)
     {
         var u = new User(id, username, "") { Guid = guid };
-        u.Password = u.HashPassword(plainPassword); // hashed in Password field (so ComparePassword works)
+        u.Password = u.HashPassword(plainPassword); 
         return u;
     }
 

@@ -18,6 +18,7 @@ namespace MediaRating.Api.Controller
         }
 
 
+        // POST /api/users/register
         public (User? user, int statusCode, string? errorMessage) AddUser(UserDto userData)
         {
             if (string.IsNullOrWhiteSpace(userData.Username) || string.IsNullOrWhiteSpace(userData.Password))
@@ -30,10 +31,11 @@ namespace MediaRating.Api.Controller
             var tmp = new User(0, userData.Username, "");
             var hash = tmp.HashPassword(userData.Password);
 
-            var u = _db.Users_Insert(userData.Username, hash, userData.Guid);  // <-- nur User
+            var u = _db.Users_Insert(userData.Username, hash, userData.Guid);
             return (u, 201, null);
         }
 
+        // POST /api/users/login
         public (object? loginResponse, int statusCode, string? errorMessage) Login(UserDto userData)
         {
             try
@@ -62,6 +64,7 @@ namespace MediaRating.Api.Controller
         }
 
 
+        // Token
         public string CreateToken(User user)
         {
             long ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
