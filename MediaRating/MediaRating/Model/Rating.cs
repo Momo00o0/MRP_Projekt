@@ -26,7 +26,7 @@ namespace MediaRating.Model
 
         public int Stars { get; set; } 
         public string? Comment { get; set; }
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime Timestamp { get;} 
         public bool Confirmed { get; set; }
         public User Creator { get; set; }
         public MediaEntry Media { get; set; }
