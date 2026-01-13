@@ -43,8 +43,6 @@ public class HttpService
 
         try
         {
-         
-
             // Pfad normalisieren
             var path = req.Url!.AbsolutePath;
             if (path.Length > 1) path = path.TrimEnd('/');
@@ -57,7 +55,7 @@ public class HttpService
                     {
                         try
                         {
-                            var items = _users.GetAllUsers(); // liefert nur Users
+                            var items = _users.GetAllUsers(); 
                             await Send(res, 200, items.Select(u => new { u.Id, u.Guid, u.Username }));
                         }
                         catch
@@ -120,8 +118,6 @@ public class HttpService
 
                         var dto = await Body<MediaUpdateDto>(req);
                         if (dto is null) { await Send(res, 400, Error("Body required")); break; }
-                        if (string.IsNullOrWhiteSpace(dto.Title)) { await Send(res, 400, Error("Title required")); break; }
-                        if (dto.Description is null) { await Send(res, 400, Error("Description required")); break; } // zur Sicherheit
 
                         var (entity, code, err) = _media.UpdateMedia(mediaGuid, dto, user!);
                         if (err != null) { await Send(res, code, Error(err)); break; }
@@ -217,14 +213,14 @@ public class HttpService
                         break;
                     }
 
-                case "GET" when path.StartsWith("/api/ratings/media", StringComparison.OrdinalIgnoreCase)
-                             && !path.EndsWith("/avg", StringComparison.OrdinalIgnoreCase):
+                case "GET" when path.StartsWith("/api/ratings/media", StringComparison.OrdinalIgnoreCase):
                     {
-                        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length < 4 || !Guid.TryParse(parts[3], out var mg))
+                        var guidStr = path.Substring("/api/ratings/media/".Length).TrimEnd('/');
+
+                        if (!Guid.TryParse(guidStr, out var mediaGuid))
                         { await Send(res, 400, Error("Invalid media guid")); break; }
 
-                        var (items, code, err) = _ratings.GetForMedia(mg);
+                        var (items, code, err) = _ratings.GetForMedia(mediaGuid);
                         await Send(res, code, err is null ? items!.Select(items => new
                         {
                             items.Stars,
@@ -238,14 +234,14 @@ public class HttpService
                         break;
                     }
 
-                case "GET" when path.StartsWith("/api/ratings/user", StringComparison.OrdinalIgnoreCase)
-                         && !path.EndsWith("/avg", StringComparison.OrdinalIgnoreCase):
+                case "GET" when path.StartsWith("/api/ratings/user", StringComparison.OrdinalIgnoreCase):
                     {
-                        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length < 4 || !Guid.TryParse(parts[3], out var mg))
-                        { await Send(res, 400, Error("Invalid media guid")); break; }
+                         var guidStr = path.Substring("/api/ratings/user/".Length).TrimEnd('/');
 
-                        var (items, code, err) = _ratings.GetForUser(mg);
+                        if (!Guid.TryParse(guidStr, out var mediaGuid))
+                        { await Send(res, 400, Error("Invalid user guid")); break; }
+
+                        var (items, code, err) = _ratings.GetForUser(mediaGuid);
                         await Send(res, code, err is null ? items!.Select(items => new
                         {
                             items.Stars,
@@ -328,17 +324,17 @@ public class HttpService
         var auth = req.Headers["Authorization"];
         if (string.IsNullOrWhiteSpace(auth)) return (false, null);
 
-        if (!auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        if (!auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) //Token format
             return (false, null);
 
-        var token = auth.Substring("Bearer ".Length).Trim();
-        var parts = token.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var token = auth.Substring("Bearer ".Length).Trim(); //bearer wegschneiden
+        var parts = token.Split('.', StringSplitOptions.RemoveEmptyEntries); //bei . aufteilen
 
-        // Erwartet: mrpx.<UserGuidImFormatN>.<...>.<...>
+        // mrpx.<UserGuidImFormatN>.<...>.<...>
         if (parts.Length != 4) return (false, null);
         if (!parts[0].Equals("mrpx", StringComparison.OrdinalIgnoreCase)) return (false, null);
 
-        if (!Guid.TryParseExact(parts[1], "N", out var userGuid)) return (false, null);
+        if (!Guid.TryParseExact(parts[1], "N", out var userGuid)) return (false, null); //ohne Bindestriche
 
         var user = _db.Users_FindByGuid(userGuid);
         return user is null ? (false, null) : (true, user);
@@ -366,7 +362,7 @@ public class HttpService
         var data = Encoding.UTF8.GetBytes(json);
 
         res.ContentType = "application/json; charset=utf-8";
-        res.ContentEncoding = Encoding.UTF8;
+        res.ContentEncoding = Encoding.UTF8; //Testkodierung
         res.ContentLength64 = data.Length;
 
         await res.OutputStream.WriteAsync(data, 0, data.Length);
@@ -375,10 +371,4 @@ public class HttpService
 
     private object Error(string message) => new { error = message };
 
-    private void AddCorsHeaders(HttpListenerResponse res)
-    {
-        res.Headers["Access-Control-Allow-Origin"] = "*";
-        res.Headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS";
-        res.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization";
-    }
 }
