@@ -31,7 +31,7 @@ namespace MediaRating.Api.Controller
             var tmp = new User(0, userData.Username, "");
             var hash = tmp.HashPassword(userData.Password);
 
-            var u = _db.Users_Insert(userData.Username, hash, userData.Guid);
+            var u = _db.Users_Insert(userData.Username, hash);
             return (u, 201, null);
         }
 

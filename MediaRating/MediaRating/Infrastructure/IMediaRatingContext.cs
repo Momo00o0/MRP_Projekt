@@ -12,7 +12,7 @@ namespace MediaRating.Infrastructure
         List<User> Users_GetAll();
         User? Users_FindByUsername(string username);
         User? Users_FindByGuid(Guid guid);
-        User Users_Insert(string username, string passwordHash, Guid? fixedGuid);
+        User Users_Insert(string username, string passwordHash);
 
         // Media
         List<MediaEntry> Media_GetAll();

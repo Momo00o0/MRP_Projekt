@@ -12,13 +12,11 @@ namespace MediaRating.Infrastructure
 {
     public class MediaRatingContext : IMediaRatingContext
     {
-       
-        
         private static readonly string Conn =
             Environment.GetEnvironmentVariable("PG_CONN")
             ?? throw new InvalidOperationException("PG_CONN not set.");
 
-        // Kleine Hilfsfunktion: macht eine neue DB-Verbindung auf und gibt sie geöffnet zurück.
+        // Hilfsfunktion: macht eine neue DB-Verbindung auf und gibt sie geöffnet zurück.
         private static NpgsqlConnection Open()
         {
             var c = new NpgsqlConnection(Conn);
@@ -27,10 +25,8 @@ namespace MediaRating.Infrastructure
         }
 
 
-        //            USERS
-
-        // Holt ALLE Benutzer aus der Tabelle "users".
-       
+        //USERS
+        // Holt ALLE Benutzer aus der Tabelle "users
         public List<User> Users_GetAll()
         {
             using var con = Open();
@@ -49,15 +45,14 @@ namespace MediaRating.Infrastructure
             return list;
         }
 
-        // Sucht einen Benutzer per "username".
-        
+        // Sucht einen Benutzer per username
         public User? Users_FindByUsername(string username)
         {
             using var con = Open();
             using var cmd = new NpgsqlCommand(
                 "SELECT id, guid, username, password_hash FROM users WHERE username=@u;", con);
             cmd.Parameters.AddWithValue("@u", username);
-            using var rd = cmd.ExecuteReader();
+            using var rd = cmd.ExecuteReader(); //ausführen sql
             if (!rd.Read()) return null;
 
             var u = new User(rd.GetInt32(0), rd.GetString(2), "") { Guid = rd.GetGuid(1) };
@@ -65,8 +60,7 @@ namespace MediaRating.Infrastructure
             return u;
         }
 
-        // Sucht einen Benutzer per "guid".
-
+        // Sucht einen Benutzer per guid
         public User? Users_FindByGuid(Guid guid)
         {
             using var con = Open();
@@ -82,20 +76,16 @@ namespace MediaRating.Infrastructure
         }
 
         // Legt einen neuen Benutzer in der DB an.
-        // Rückgabe: der gerade eingefügte User mit DB-Id und Guid.
-        public User Users_Insert(string username, string passwordHash, Guid? fixedGuid = null)
+        public User Users_Insert(string username, string passwordHash)
         {
             using var con = Open();
             using var cmd = new NpgsqlCommand(
-                "INSERT INTO users (guid, username, password_hash) VALUES (@g,@u,@p) RETURNING id, guid;", con);
+                "INSERT INTO users (username, password_hash) VALUES (@u,@p) RETURNING id, guid;", con);
 
-            var g = fixedGuid ?? Guid.NewGuid();    // falls nicht vorgegeben, neuen Guid erzeugen
-            cmd.Parameters.AddWithValue("@g", g);
             cmd.Parameters.AddWithValue("@u", username);
             cmd.Parameters.AddWithValue("@p", passwordHash);
-
            
-            using var rd = cmd.ExecuteReader();
+            using var rd = cmd.ExecuteReader(); 
             rd.Read();
 
             return new User(rd.GetInt32(0), username, "")
@@ -107,11 +97,8 @@ namespace MediaRating.Infrastructure
 
 
 
-        //           MEDIA
-
+        // MEDIA
         // Holt ALLE Media-Einträge
-        // Mapping:
-        //   - kind steuert, welche konkrete Klasse instanziiert wird (Movie/Series/Game).
         public List<MediaEntry> Media_GetAll()
         {
             using var con = Open();
@@ -149,8 +136,7 @@ namespace MediaRating.Infrastructure
             return list;
         }
 
-        // Holt GENAU EINEN Media-Eintrag per Guid
-        // Gibt null zurück, wenn nichts gefunden wird.
+        // Holt GENAU EINEN Media Eintrag 
         public MediaEntry? Media_GetByGuid(Guid guid)
         {
             using var con = Open();
@@ -215,7 +201,6 @@ namespace MediaRating.Infrastructure
         }
 
         // Erstellt einen neuen Media-Eintrag in der 
-        
         public MediaEntry Media_Create(MediaEntryDto dto, User creator)
         {
             var g = Guid.NewGuid(); 
@@ -225,7 +210,7 @@ namespace MediaRating.Infrastructure
                 INSERT INTO media_entries (guid, title, description, release_year, age_restriction, kind, creator_id)
                 VALUES (@g,@t,@d,@y,@a,@k,@c);", con);
 
-            // Parameter binden (description darf NULL sein → DBNull.Value)
+            // Parameter binden
             cmd.Parameters.AddWithValue("@g", g);
             cmd.Parameters.AddWithValue("@t", dto.Title);
             cmd.Parameters.AddWithValue("@d", (object?)dto.Description ?? DBNull.Value);
@@ -276,13 +261,13 @@ namespace MediaRating.Infrastructure
             cmd.Parameters.AddWithValue("@k", dto.Kind.ToString());
 
             using var rd = cmd.ExecuteReader();
-            if (!rd.Read()) return null; // nicht gefunden oder nicht owner
+            if (!rd.Read()) return null; 
 
             var creator = new User(rd.GetInt32(6), rd.GetString(8), "") { Guid = rd.GetGuid(7) };
             var kind = rd.GetString(5);
 
             var title = rd.GetString(1);
-            var desc = rd.IsDBNull(2) ? "" : rd.GetString(2); // ✅ passt zu deinem Model (nie null)
+            var desc = rd.IsDBNull(2) ? "" : rd.GetString(2);
 
             MediaEntry m = kind switch
             {
@@ -343,7 +328,7 @@ namespace MediaRating.Infrastructure
             return Convert.ToInt32(r);
         }
 
-        // Prüfen, ob bereits ein Rating für (user, media) existiert
+        // Prüfen, ob bereits ein Rating für user, media existiert
         public bool Ratings_Exists(Guid userGuid, Guid mediaGuid)
         {
             using var con = Open();
@@ -359,7 +344,7 @@ namespace MediaRating.Infrastructure
             return cmd.ExecuteScalar() != null;
         }
 
-        // CREATE: neues Rating anlegen
+        // Neues Rating anlegen
         public void Ratings_Insert(Guid userGuid, Guid mediaGuid, int stars, string? comment)
         {
             using var con = Open();
@@ -385,31 +370,36 @@ namespace MediaRating.Infrastructure
             }
         }
 
-        // READ: alle Ratings zu einem Media 
+        // Alle Ratings zu einem Media 
         public List<Rating> Ratings_GetForMedia(Guid mediaGuid)
         {
             using var con = Open();
             using var cmd = new NpgsqlCommand(@"
                 SELECT r.guid AS rguid, r.stars, r.comment, r.timestamp, r.confirmed,
-                       u.id   AS uid,   u.guid AS uguid,   u.username,
-                       m.id   AS mid,   m.guid AS mguid,   m.title
-                  FROM ratings r
-                  JOIN users u ON u.id = r.user_id
-                  JOIN media_entries m ON m.id = r.media_id
-                 WHERE m.guid=@g
-                 ORDER BY r.id DESC;", con);
+                ru.id AS r_uid, ru.guid AS r_uguid, ru.username AS r_username,
+                m.guid AS mguid, m.title,
+                mu.id AS m_uid, mu.guid AS m_uguid, mu.username AS m_username
+                FROM ratings r
+                JOIN users ru ON ru.id = r.user_id
+                JOIN media_entries m ON m.id = r.media_id
+                JOIN users mu ON mu.id = m.creator_id
+                WHERE m.guid=@g
+                ORDER BY r.id DESC;", con);
             cmd.Parameters.AddWithValue("@g", mediaGuid);
 
             using var rd = cmd.ExecuteReader();
             var list = new List<Rating>();
             while (rd.Read())
             {
-                var creator = new User(rd.GetInt32(rd.GetOrdinal("uid")),
-                                       rd.GetString(rd.GetOrdinal("username")), "")
-                { Guid = rd.GetGuid(rd.GetOrdinal("uguid")) };
+                var creator = new User(rd.GetInt32(rd.GetOrdinal("r_uid")),
+                                       rd.GetString(rd.GetOrdinal("r_username")), "")
+                { Guid = rd.GetGuid(rd.GetOrdinal("r_uguid")) };
 
                 
-                var mediaOwner = creator; 
+                var mediaOwner = new User(rd.GetInt32(rd.GetOrdinal("m_uid")),
+                                       rd.GetString(rd.GetOrdinal("m_username")), "")
+                { Guid = rd.GetGuid(rd.GetOrdinal("m_uguid")) }; 
+
                 var media = new Movie(rd.GetString(rd.GetOrdinal("title")), null, 0, 0, mediaOwner);
 
                 var rating = new Rating(
@@ -426,7 +416,7 @@ namespace MediaRating.Infrastructure
             return list;
         }
 
-        // (optional) READ: alle Ratings eines Users
+        // Alle Ratings eines Users
         public List<Rating> Ratings_GetForUser(Guid userGuid)
         {
             using var con = Open();
@@ -509,9 +499,9 @@ namespace MediaRating.Infrastructure
             cmd.Parameters.AddWithValue("@c", (object?)dto.Comment ?? DBNull.Value);
 
             using var rd = cmd.ExecuteReader();
-            if (!rd.Read()) return null; // nicht gefunden ODER nicht owner
+            if (!rd.Read()) return null; 
 
-            // Rating-Creator (der User, der das Rating erstellt hat)
+            // Rating-Creator
             var ratingCreator = new User(
                 rd.GetInt32(rd.GetOrdinal("rating_creator_id")),
                 rd.GetString(rd.GetOrdinal("rating_creator_username")),

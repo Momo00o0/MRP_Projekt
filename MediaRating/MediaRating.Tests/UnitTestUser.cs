@@ -25,11 +25,11 @@ public class UnitTestUser
         var db = new Mock<IMediaRatingContext>();
         db.Setup(x => x.Users_GetAll()).Returns(new List<User> { new User(1, "a", "") { Guid = Guid.NewGuid() } });
 
-        var controller = new UserController(db.Object);
+        var controller = new UserController(db.Object); // Controller bekommt Mock statt echte DB
 
         var users = controller.GetAllUsers();
 
-        Assert.Single(users);
+        Assert.Single(users); //genau ein Element
         db.Verify(x => x.Users_GetAll(), Times.Once);
     }
 
@@ -64,27 +64,26 @@ public class UnitTestUser
     [Test]
     public void AddUser_Returns_201_And_Calls_Insert()
     {
-        var fixedGuid = Guid.NewGuid();
+        var guid = Guid.NewGuid();
 
         var db = new Mock<IMediaRatingContext>();
         db.Setup(x => x.Users_FindByUsername("max")).Returns((User?)null);
         db.Setup(x => x.Users_Insert(
                 "max",
-                It.Is<string>(h => !string.IsNullOrWhiteSpace(h) && h != "pw"),
-                fixedGuid))
-          .Returns(new User(7, "max", "") { Guid = fixedGuid });
+                It.Is<string>(h => !string.IsNullOrWhiteSpace(h) && h != "pw")))
+          .Returns(new User(7, "max", "") { Guid = guid });
 
         var controller = new UserController(db.Object);
 
-        var (user, code, err) = controller.AddUser(new UserDto("max", "pw", fixedGuid));
+        var (user, code, err) = controller.AddUser(new UserDto("max", "pw", guid)); //hier prüft der Controller dann alles
 
         Assert.NotNull(user);
         Assert.Equal(201, code);
         Assert.Null(err);
-        Assert.Equal("max", user!.Username);
-        Assert.Equal(fixedGuid, user.Guid);
+        Assert.Equal("max", user.Username);
+        Assert.Equal(guid, user.Guid);
 
-        db.Verify(x => x.Users_Insert("max", It.IsAny<string>(), fixedGuid), Times.Once);
+        db.Verify(x => x.Users_Insert("max", It.IsAny<string>()), Times.Once); //wurde aufgerufen? wenn ja dann ok
     }
 
     [Test]

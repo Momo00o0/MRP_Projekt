@@ -16,9 +16,9 @@ public class MediaControllerTests
     private static User MakeUser(int id, Guid guid, string username)
         => new User(id, username, "") { Guid = guid };
 
-    private static MediaEntry MakeMovie(Guid mediaGuid, User creator)
+    private static MediaEntry MakeMovie(MediaEntryDto dto, Guid mediaGuid, User creator)
     {
-        var m = new Movie("T", "D", 2020, 12, creator) { Guid = mediaGuid };
+        var m = new Movie(dto.Title, dto.Description, dto.ReleaseYear, dto.AgeRestriction, creator) { Guid = mediaGuid };
         return m;
     }
 
@@ -102,7 +102,7 @@ public class MediaControllerTests
     {
         var creator = MakeUser(5, Guid.NewGuid(), "max");
         var dto = new MediaEntryDto("t", "desc", 2020, new List<string>(), 12, creator.Guid, MediaKind.Movie);
-        var created = MakeMovie(Guid.NewGuid(), creator);
+        var created = MakeMovie(dto,Guid.NewGuid(), creator);
 
         var db = new Mock<IMediaRatingContext>();
         db.Setup(x => x.Media_Create(dto, creator)).Returns(created);
@@ -125,10 +125,10 @@ public class MediaControllerTests
         var mediaGuid = Guid.NewGuid();
         var owner = MakeUser(1, Guid.NewGuid(), "owner");
         var other = MakeUser(2, Guid.NewGuid(), "other");
-        var existing = MakeMovie(mediaGuid, owner);
+        var existing = new Movie("T","D",2010,12 , owner);
 
         var dto = new MediaUpdateDto("new", "newdesc", 2022, 16, MediaKind.Movie);
-
+        
         var db = new Mock<IMediaRatingContext>();
         db.Setup(x => x.Media_GetByGuid(mediaGuid)).Returns(existing);
 
@@ -146,7 +146,7 @@ public class MediaControllerTests
     {
         var mediaGuid = Guid.NewGuid();
         var owner = MakeUser(1, Guid.NewGuid(), "owner");
-        var existing = MakeMovie(mediaGuid, owner);
+        var existing = new Movie("T", "D", 2010, 12, owner);
 
         var db = new Mock<IMediaRatingContext>();
         db.Setup(x => x.Media_GetByGuid(mediaGuid)).Returns(existing);
